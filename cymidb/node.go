@@ -33,7 +33,7 @@ type NodeID []byte
 
 // Node is the basic type in the DB. Every node can have 0 or more fields that are either data, or point to other nodes.
 type Node struct {
-	Hash    []byte
+	ID      []byte
 	Type    NodeType
 	Version uint64
 	Date    int64

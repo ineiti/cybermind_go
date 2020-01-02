@@ -72,7 +72,7 @@ func OpenDBFile(file string) (db DB, err error) {
 	if err != nil {
 		return db, fmt.Errorf("couldn't get node: %+v", err)
 	}
-	node, err := db.GetLatest(n.Hash)
+	node, err := db.GetLatest(n.ID)
 	if err != nil {
 		return db, fmt.Errorf("couldn't get latest node version: %+v", err)
 	}
@@ -95,7 +95,7 @@ func (db DB) NewNode(n Node) error {
 		return fmt.Errorf("couldn't create memoryLaneEntry: %+v", err)
 	}
 	err = db.gdb.Create(&NodeVersions{
-		NodeID:   n.Hash,
+		NodeID:   n.ID,
 		Versions: []MemoryLaneEntry{mle},
 	}).Error
 	if err != nil {
@@ -104,21 +104,49 @@ func (db DB) NewNode(n Node) error {
 	return nil
 }
 
+// UpdateNode searches for the node in the database and creates a new version.
+func (db DB) UpdateNode(n Node) error {
+	nv, err := db.GetNodeVersions(n.ID)
+	if err != nil {
+		return fmt.Errorf("couldn't get nodeVersions: %+v", err)
+	}
+	latest, err := nv.GetLatest()
+	if err != nil {
+		return fmt.Errorf("couldn't get latest: %+v", err)
+	}
+	n.Version = latest.Version + 1
+	mle, err := NewMemoryLaneEntry(n)
+	if err != nil {
+		return fmt.Errorf("couldn't createe memoryLaneEntry: %+v", err)
+	}
+	nv.Versions = append(nv.Versions, mle)
+	err = db.gdb.Save(&nv).Error
+	if err != nil {
+		return fmt.Errorf("couldn't update nodeVersion: %+v", err)
+	}
+	return nil
+}
+
+// GetNodeVersions gets the NodeVersions entry and also fetches all related MemoryLaneEntries.
+func (db DB) GetNodeVersions(id []byte) (nv NodeVersions, err error) {
+	err = db.gdb.Where(&NodeVersions{NodeID: id}).First(&nv).Error
+	if err != nil {
+		return nv, fmt.Errorf("couldn't get NodeVersions: %+v", err)
+	}
+	err = db.gdb.Model(&nv).Related(&nv.Versions).Error
+	if err != nil {
+		return nv, fmt.Errorf("couldn't get versions: %+v", err)
+	}
+	return
+}
+
 // GetLatest returns the latest version of the node with the given id.
 func (db DB) GetLatest(id []byte) (n Node, err error) {
-	ni := NodeVersions{}
-	err = db.gdb.Where(&NodeVersions{NodeID: id}).First(&ni).Error
+	nv, err := db.GetNodeVersions(id)
 	if err != nil {
-		return n, fmt.Errorf("couldn't get NodeVersions: %+v", err)
+		return n, fmt.Errorf("couldn't get nodeVersions: %+v", err)
 	}
-	err = db.gdb.Model(&ni).Related(&ni.Versions).Error
-	if err != nil {
-		return n, fmt.Errorf("couldn't get versions: %+v", err)
-	}
-	if len(ni.Versions) == 0 {
-		return n, errors.New("no versions stored in nodeIndex")
-	}
-	return ni.Versions[len(ni.Versions)-1].Node()
+	return nv.GetLatest()
 }
 
 // NewMemoryLaneEntry creates a
@@ -140,6 +168,18 @@ func (ml MemoryLaneEntry) Node() (n Node, err error) {
 	err = dec.Decode(&n)
 	if err != nil {
 		return n, fmt.Errorf("couldn't decode node: %+v", err)
+	}
+	return
+}
+
+// GetLatest returns the latewst stored Node in the NodeVersions structure.
+func (nv NodeVersions) GetLatest() (n Node, err error) {
+	if len(nv.Versions) == 0 {
+		return n, errors.New("no versions stored in nodeIndex")
+	}
+	n, err = nv.Versions[len(nv.Versions)-1].Node()
+	if err != nil {
+		return n, fmt.Errorf("couldn't get node: %+v", err)
 	}
 	return
 }
