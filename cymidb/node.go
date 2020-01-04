@@ -1,10 +1,15 @@
 package cymidb
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/gob"
+	"errors"
 	"fmt"
+
+	"github.com/jinzhu/gorm"
 )
 
 // NodeType points to one of the general node types. Most of the types have sub-types
@@ -20,8 +25,9 @@ const (
 	NodeTag
 )
 
-func RandomNodeID() []byte {
-	nid := make([]byte, 32)
+// RandomNodeID returns a random 256-bit ID.
+func RandomNodeID() NodeID {
+	nid := make([]byte, NodeIDLen)
 	_, err := rand.Read(nid)
 	if err != nil {
 		panic("couldn't read random value: " + err.Error())
@@ -29,47 +35,131 @@ func RandomNodeID() []byte {
 	return nid
 }
 
+// NodeID
 type NodeID []byte
+
+// NodeIDLen is the length of the nodeID
+const NodeIDLen = 32
 
 // Node is the basic type in the DB. Every node can have 0 or more fields that are either data, or point to other nodes.
 type Node struct {
-	ID      []byte
+	gorm.Model
+	NodeID  NodeID
 	Type    NodeType
 	Version uint64
 	Date    int64
-	Links   []Link
-	Datas   []Data
+	DataBuf []byte
+	datas   []Data
 }
 
-type LinkType uint64
-
-// Link is either pointing to another node, or has data in it.
+// Link is used to link a parent to a child node, or a child to an ancestor.
 type Link struct {
-	Type LinkType
-	Link []byte
+	From NodeID
+	To   NodeID
 }
 
+// Returns a new dataType, which is the first 64 bits of a sha256 hash of a unique URL. Using the birthday paradox,
+// having 2**64 possible data types, at 2**32 different data types, there is a 50% chance of a collision,
+// which we decide to live with.
 func NewDataType(url string) DataType {
 	sha := sha256.Sum256([]byte(url))
 	return DataType(binary.LittleEndian.Uint64(sha[0:8]))
 }
 
+// DataType is used in Node.datas to store different types of data.
 type DataType uint64
 
+// Data represents a data, including its type.
 type Data struct {
 	Type DataType
 	Data []byte
 }
 
-func (n Node) GetLinks(t LinkType) ([]NodeID, error) {
-	return nil, nil
+// NewNode creates a node and sets up all internal structures accordingly.
+// The caller can add any number of Data in the arguments, including 0.
+func NewNode(t NodeType, datas ...Data) Node {
+	n := Node{
+		NodeID: RandomNodeID(),
+		Type:   t,
+		datas:  datas,
+	}
+	if len(datas) > 0 {
+		err := n.SetDatas(datas)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return n
 }
 
+// Equals tests if the two nodes have the equal content, not if they are the same object in the DB.
+// Two nodes can be different objects in the DB (having different dates, IDs), but nevertheless be the same node.
+func (n Node) Equals(o Node) error {
+	if bytes.Compare(n.NodeID, o.NodeID) != 0 {
+		return errors.New("NodeID differs")
+	}
+	if n.Type != o.Type {
+		return errors.New("type differs")
+	}
+	if n.Version != o.Version {
+		return errors.New("version differs")
+	}
+	if n.Date != o.Date {
+		return errors.New("date differs")
+	}
+	if bytes.Compare(n.DataBuf, o.DataBuf) != 0 {
+		return errors.New("dataBuf differs")
+	}
+	return nil
+}
+
+// GetDatas returns a slice of all Data of the node. As gorm cannot store structures,
+// the data itself is stored as a binary blob in the DB.
+func (n Node) GetDatas() ([]Data, error) {
+	if err := n.updateDatas(); err != nil {
+		return nil, fmt.Errorf("couldn't update datas: %+v", err)
+	}
+	return n.datas, nil
+}
+
+// SetDatas overwrites the current data slice of the node.
+func (n *Node) SetDatas(d []Data) error {
+	n.datas = d
+	return n.updateDataBuf()
+}
+
+// GetData returns the data of the given dataType. If there is more than one data entry of the given dataType,
+// only the first is returned.
 func (n Node) GetData(t DataType) (d []byte, err error) {
-	for _, d := range n.Datas {
+	if err = n.updateDatas(); err != nil {
+		return nil, fmt.Errorf("couldn't update datas: %+v", err)
+	}
+	for _, d := range n.datas {
 		if d.Type == t {
 			return d.Data, nil
 		}
 	}
 	return nil, fmt.Errorf("couldn't find dataType: %d", t)
+}
+
+func (n *Node) updateDataBuf() error {
+	buf := &bytes.Buffer{}
+	enc := gob.NewEncoder(buf)
+	err := enc.Encode(n.datas)
+	if err != nil {
+		return fmt.Errorf("couldn't encode datas: %+v", err)
+	}
+	n.DataBuf = buf.Bytes()
+	return nil
+}
+
+func (n *Node) updateDatas() error {
+	if n.datas == nil && n.DataBuf != nil {
+		dec := gob.NewDecoder(bytes.NewBuffer(n.DataBuf))
+		err := dec.Decode(&n.datas)
+		if err != nil {
+			return fmt.Errorf("couldn't decode datas: %+v", err)
+		}
+	}
+	return nil
 }

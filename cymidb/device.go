@@ -37,7 +37,7 @@ func NewDeviceFromNode(n Node) (dev Device, err error) {
 // CreateNewNode returns a node that
 func NewDevice(name string) (dev Device) {
 	dev.Node = Node{
-		ID:      RandomNodeID(),
+		NodeID:  RandomNodeID(),
 		Type:    NodeDev,
 		Date:    time.Now().Unix(),
 		Version: 0,
@@ -49,7 +49,7 @@ func NewDevice(name string) (dev Device) {
 
 // UpdateNode copies the name and url to the node structure.
 func (dev *Device) UpdateNode() {
-	dev.Node.Datas = []Data{
+	dev.Node.datas = []Data{
 		{Type: DataTypeDeviceName, Data: []byte(dev.Name)},
 		{Type: DataTypeDeviceURL, Data: []byte(dev.URL)},
 	}
