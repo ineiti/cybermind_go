@@ -42,9 +42,7 @@ func TestDB_GetLatest(t *testing.T) {
 	require.NoError(t, err)
 
 	db.Device.Name = "temp"
-	db.Device.UpdateNode()
-	db.Device.Version++
-	require.NoError(t, db.SaveNode(db.Device.Node))
+	require.NoError(t, db.SaveNode(db.Device))
 	db.Close()
 
 	db, err = OpenDBFile(f.Name())

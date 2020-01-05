@@ -8,6 +8,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jinzhu/gorm"
 )
@@ -52,6 +53,12 @@ type Node struct {
 	datas   []Data
 }
 
+// Noder can be used for inherited types that need to be stored,
+// so they can prepare eventual cached data and write it to the node before storing.
+type Noder interface {
+	GetNode() (Node, error)
+}
+
 // Link is used to link a parent to a child node, or a child to an ancestor.
 type Link struct {
 	From NodeID
@@ -81,10 +88,10 @@ func NewNode(t NodeType, datas ...Data) Node {
 	n := Node{
 		NodeID: RandomNodeID(),
 		Type:   t,
-		datas:  datas,
+		Date:   time.Now().Unix(),
 	}
 	if len(datas) > 0 {
-		err := n.SetDatas(datas)
+		err := n.SetDatas(datas...)
 		if err != nil {
 			panic(err)
 		}
@@ -123,7 +130,7 @@ func (n Node) GetDatas() ([]Data, error) {
 }
 
 // SetDatas overwrites the current data slice of the node.
-func (n *Node) SetDatas(d []Data) error {
+func (n *Node) SetDatas(d ...Data) error {
 	n.datas = d
 	return n.updateDataBuf()
 }
@@ -140,6 +147,13 @@ func (n Node) GetData(t DataType) (d []byte, err error) {
 		}
 	}
 	return nil, fmt.Errorf("couldn't find dataType: %d", t)
+}
+
+func (n Node) GetNode() (Node, error) {
+	if err := n.updateDataBuf(); err != nil {
+		return n, fmt.Errorf("couldn't update data buffer: %+v", err)
+	}
+	return n, nil
 }
 
 func (n *Node) updateDataBuf() error {

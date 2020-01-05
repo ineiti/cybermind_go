@@ -1,6 +1,7 @@
 package cymidb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -33,7 +34,7 @@ func CreateDBFile(file string, name, url string) (db DB, err error) {
 	}
 
 	db.Device = NewDevice(name)
-	err = db.SaveNode(db.Device.Node)
+	err = db.SaveNode(db.Device)
 	if err != nil {
 		return db, fmt.Errorf("couldn't create new node: %+v", err)
 	}
@@ -70,11 +71,17 @@ func (db DB) Close() error {
 }
 
 // NewNode takes a node and inserts it in the DB.
-func (db DB) SaveNode(n Node) error {
-	if err := n.updateDataBuf(); err != nil {
-		return fmt.Errorf("couldn't update data buffer: %+v", err)
+func (db DB) SaveNode(n Noder) error {
+	node, err := n.GetNode()
+	if err != nil {
+		return fmt.Errorf("couldn't get node: %+v", err)
 	}
-	err := db.gdb.Save(&n).Error
+	var exist Node
+	db.gdb.Last(&exist, &Node{NodeID: node.NodeID})
+	if bytes.Compare(exist.NodeID, node.NodeID) == 0 {
+		node.Version = exist.Version + 1
+	}
+	err = db.gdb.Save(&node).Error
 	if err != nil {
 		return fmt.Errorf("couldn't create new node: %+v", err)
 	}
