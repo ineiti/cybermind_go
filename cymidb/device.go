@@ -42,11 +42,7 @@ func NewDevice(name string) (dev Device) {
 
 // GetNode makes sure that the dataBuf of the node is updated and returns the updated node.
 func (dev Device) GetNode() (Node, error) {
-	return dev.node, dev.updateNode()
-}
-
-// updateNode copies the name and url to the node structure.
-func (dev *Device) updateNode() error {
-	return dev.node.SetDatas(Data{Type: DataTypeDeviceName, Data: []byte(dev.Name)},
+	err := dev.node.SetDatas(Data{Type: DataTypeDeviceName, Data: []byte(dev.Name)},
 		Data{Type: DataTypeDeviceURL, Data: []byte(dev.URL)})
+	return dev.node, err
 }
