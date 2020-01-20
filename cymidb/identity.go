@@ -43,7 +43,7 @@ func (ident Identity) GetNode() (Node, error) {
 	return ident.node, nil
 }
 
-// Equals returns nil if the two identities are equal, or an error otherwise.
+// CompareTo returns nil if the two identities are equal, or an error otherwise.
 func (ident Identity) Equals(other Identity) error {
 	if bytes.Compare(ident.node.NodeID, other.node.NodeID) != 0 {
 		return errors.New("not the same NodeID")

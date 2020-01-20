@@ -71,19 +71,21 @@ func (db DB) Close() error {
 }
 
 // NewNode takes a node and inserts it in the DB.
-func (db DB) SaveNode(n Noder) error {
-	node, err := n.GetNode()
-	if err != nil {
-		return fmt.Errorf("couldn't get node: %+v", err)
-	}
-	var exist Node
-	db.gdb.Last(&exist, &Node{NodeID: node.NodeID})
-	if bytes.Compare(exist.NodeID, node.NodeID) == 0 {
-		node.Version = exist.Version + 1
-	}
-	err = db.gdb.Save(&node).Error
-	if err != nil {
-		return fmt.Errorf("couldn't create new node: %+v", err)
+func (db DB) SaveNode(ns ...Noder) error {
+	for _, n := range ns {
+		node, err := n.GetNode()
+		if err != nil {
+			return fmt.Errorf("couldn't get node: %+v", err)
+		}
+		var exist Node
+		db.gdb.Last(&exist, &Node{NodeID: node.NodeID})
+		if bytes.Compare(exist.NodeID, node.NodeID) == 0 {
+			node.Version = exist.Version + 1
+		}
+		err = db.gdb.Save(&node).Error
+		if err != nil {
+			return fmt.Errorf("couldn't create new node: %+v", err)
+		}
 	}
 	return nil
 }

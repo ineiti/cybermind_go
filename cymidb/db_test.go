@@ -67,7 +67,7 @@ func TestDB_Links(t *testing.T) {
 	children, err := db.GetChildrenNodes(n1.NodeID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(children))
-	require.NoError(t, n2.Equals(children[0]))
+	require.NoError(t, n2.CompareTo(children[0]))
 
 	children, err = db.GetChildrenNodes(n2.NodeID)
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestDB_Links(t *testing.T) {
 	ancestors, err := db.GetAncestorsNodes(n2.NodeID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(ancestors))
-	require.NoError(t, n1.Equals(ancestors[0]))
+	require.NoError(t, n1.CompareTo(ancestors[0]))
 
 	ancestors, err = db.GetAncestorsNodes(n1.NodeID)
 	require.NoError(t, err)

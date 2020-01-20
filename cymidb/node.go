@@ -105,9 +105,9 @@ func NewNode(t NodeType, datas ...Data) Node {
 	return n
 }
 
-// Equals tests if the two nodes have the equal content, not if they are the same object in the DB.
+// CompareTo tests if the two nodes have the equal content, not if they are the same object in the DB.
 // Two nodes can be different objects in the DB (having different dates, IDs), but nevertheless be the same node.
-func (n Node) Equals(o Node) error {
+func (n Node) CompareTo(o Node) error {
 	if bytes.Compare(n.NodeID, o.NodeID) != 0 {
 		return errors.New("NodeID differs")
 	}
@@ -119,6 +119,12 @@ func (n Node) Equals(o Node) error {
 	}
 	if n.Date != o.Date {
 		return errors.New("date differs")
+	}
+	if err := n.updateDataBuf(); err != nil {
+		return err
+	}
+	if err := o.updateDataBuf(); err != nil {
+		return err
 	}
 	if bytes.Compare(n.DataBuf, o.DataBuf) != 0 {
 		return errors.New("dataBuf differs")
