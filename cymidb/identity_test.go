@@ -21,4 +21,9 @@ func TestNewIdentity(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, ident.node.NodeID, ids[0])
+
+	nodes, err := db.GetNodes(ids)
+	ident2, err := NewIdentityFromNode(nodes[0])
+	require.NoError(t, err)
+	require.NoError(t, ident.Equals(ident2))
 }

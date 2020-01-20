@@ -17,7 +17,7 @@ import (
 type NodeType uint64
 
 const (
-	NodeDev = iota * 0x1000
+	NodeDev = NodeType(iota * (1 << 56))
 	NodeIdentity
 	NodeHook
 	NodeACL
@@ -25,6 +25,12 @@ const (
 	NodeLink
 	NodeTag
 )
+
+func (nt NodeType) SubType(url string) NodeType {
+	sha := sha256.Sum256([]byte(url))
+	sub := binary.LittleEndian.Uint64(sha[:]) % (1 << 56)
+	return NodeType(uint64(nt) + sub)
+}
 
 // RandomNodeID returns a random 256-bit ID.
 func RandomNodeID() NodeID {
@@ -154,6 +160,32 @@ func (n Node) GetNode() (Node, error) {
 		return n, fmt.Errorf("couldn't update data buffer: %+v", err)
 	}
 	return n, nil
+}
+
+func (n Node) DecodeNodeType(t NodeType, dt DataType, i interface{}) error {
+	if n.Type != t {
+		return errors.New("node is not of correct type")
+	}
+	d, err := n.GetData(dt)
+	if err != nil {
+		return fmt.Errorf("node doesn't have required data: %+v", err)
+	}
+	dec := gob.NewDecoder(bytes.NewBuffer(d))
+	err = dec.Decode(i)
+	if err != nil {
+		return fmt.Errorf("couldn't decode data: %+v", err)
+	}
+	return nil
+}
+
+func (n *Node) EncodeData(dt DataType, i interface{}) error {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(i)
+	if err != nil {
+		return fmt.Errorf("couldn't encode data: %+v", err)
+	}
+	return n.SetDatas(Data{Type: dt, Data: buf.Bytes()})
 }
 
 func (n *Node) updateDataBuf() error {
