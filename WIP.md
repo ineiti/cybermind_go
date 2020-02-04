@@ -19,9 +19,9 @@
 2.3 store data either in DB or on file system
 
 ## Cleanup
-Is Node.data really necessary as a slice of Datas? Or is it enough to have one gob-encoded data type?
 
 ## DONE
+Cleanup: removed node.datas and `type Data` as it was not used and it's simpler to use gob-encoding
 2.1 simple file module
 
 1. simple implementation of basic modules
