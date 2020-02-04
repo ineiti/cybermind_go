@@ -62,7 +62,7 @@ func TestDB_Links(t *testing.T) {
 	n2 := NewNode(NodeBlob, Data{td, []byte("blob2")})
 	require.NoError(t, db.SaveNode(n1))
 	require.NoError(t, db.SaveNode(n2))
-	require.NoError(t, db.AddLink(n1.NodeID, n2.NodeID))
+	require.NoError(t, db.AddLink(n1, n2))
 
 	children, err := db.GetChildrenNodes(n1.NodeID)
 	require.NoError(t, err)

@@ -20,10 +20,10 @@ same structure, but the nodes are separated into different types.
 The node structure is as follows:
 
 ```go
+package main
+
 type CMNode struct {
 	ID [32]byte
-	...
-	
 }
 ```
 
@@ -47,11 +47,20 @@ One special feature of the CyMiDB is that it has a timeline of all operations, t
 hooks to check what data did change between two different devices and what needs to be updated. The timeline can be 
 queried for changes in the tree.
 
+## Device
+
+The Device node represents one physical device: a computer, a mobile phone, a server.
+A database can contain multiple devices, but only one of these can be an 'active Device'.
+Devices can also be synchronised across databases.
+
 ## Hooks
 
 The first hooks in CyMiDB will be the following:
 - File - to add the files of one computer
 - Sync - to sync the data to another computer
+
+Hooks are linked to one or more devices where they run.
+Only hooks that are linked to the active device will be active.
 
 ## UI
 

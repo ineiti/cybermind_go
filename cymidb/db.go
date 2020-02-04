@@ -36,7 +36,7 @@ func CreateDBFile(file string, name, url string) (db DB, err error) {
 	db.Device = NewDevice(name)
 	err = db.SaveNode(db.Device)
 	if err != nil {
-		return db, fmt.Errorf("couldn't create new node: %+v", err)
+		return db, fmt.Errorf("couldn't create new node: %v", err)
 	}
 	return
 }
@@ -52,15 +52,15 @@ func OpenDBFile(file string) (db DB, err error) {
 	n := Node{}
 	err = db.gdb.First(&n).Error
 	if err != nil {
-		return db, fmt.Errorf("couldn't get first node: %+v", err)
+		return db, fmt.Errorf("couldn't get first node: %v", err)
 	}
 	node, err := db.GetLatest(n.NodeID)
 	if err != nil {
-		return db, fmt.Errorf("couldn't get latest node version: %+v", err)
+		return db, fmt.Errorf("couldn't get latest node version: %v", err)
 	}
 	db.Device, err = NewDeviceFromNode(node)
 	if err != nil {
-		return db, fmt.Errorf("couldn't get device from node: %+v", err)
+		return db, fmt.Errorf("couldn't get device from node: %v", err)
 	}
 	return
 }
@@ -75,7 +75,7 @@ func (db DB) SaveNode(ns ...Noder) error {
 	for _, n := range ns {
 		node, err := n.GetNode()
 		if err != nil {
-			return fmt.Errorf("couldn't get node: %+v", err)
+			return fmt.Errorf("couldn't get node: %v", err)
 		}
 		var exist Node
 		db.gdb.Last(&exist, &Node{NodeID: node.NodeID})
@@ -84,15 +84,23 @@ func (db DB) SaveNode(ns ...Noder) error {
 		}
 		err = db.gdb.Save(&node).Error
 		if err != nil {
-			return fmt.Errorf("couldn't create new node: %+v", err)
+			return fmt.Errorf("couldn't create new node: %v", err)
 		}
 	}
 	return nil
 }
 
 // AddLink creates a new link between two nodes.
-func (db DB) AddLink(from, to NodeID) error {
-	return db.gdb.Save(&Link{from, to}).Error
+func (db DB) AddLink(from, to Noder) error {
+	fromID, err := from.GetNode()
+	if err != nil {
+		return fmt.Errorf("couldn't get ID 'from': %v", err)
+	}
+	toID, err := to.GetNode()
+	if err != nil {
+		return fmt.Errorf("couldn't get ID 'to': %v", err)
+	}
+	return db.gdb.Save(&Link{fromID.NodeID, toID.NodeID}).Error
 }
 
 // GetNodes returns all nodes given by the ids.
@@ -101,7 +109,11 @@ func (db DB) GetNodes(ids []NodeID) (nodes []Node, err error) {
 		var n Node
 		err = db.gdb.Last(&n, &Node{NodeID: l}).Error
 		if err != nil {
-			return nil, fmt.Errorf("couldn't get node %x: %+v", l, err)
+			return nil, fmt.Errorf("couldn't get node %x: %v", l, err)
+		}
+		err = n.updateDatas()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't update datas: %v", err)
 		}
 		nodes = append(nodes, n)
 	}
@@ -122,7 +134,7 @@ func (db DB) GetChildren(from NodeID) (children []NodeID, err error) {
 func (db DB) GetChildrenNodes(from NodeID) (children []Node, err error) {
 	ids, err := db.GetChildren(from)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get ids: %+v", ids)
+		return nil, fmt.Errorf("couldn't get ids: %v", ids)
 	}
 	return db.GetNodes(ids)
 }
@@ -141,7 +153,7 @@ func (db DB) GetAncestors(to NodeID) (ancestors []NodeID, err error) {
 func (db DB) GetAncestorsNodes(to NodeID) (ancestors []Node, err error) {
 	ids, err := db.GetAncestors(to)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get ancestor links: %+v", err)
+		return nil, fmt.Errorf("couldn't get ancestor links: %v", err)
 	}
 	return db.GetNodes(ids)
 }
@@ -150,7 +162,7 @@ func (db DB) GetAncestorsNodes(to NodeID) (ancestors []Node, err error) {
 func (db DB) GetNodeVersions(id NodeID) (nodes []Node, err error) {
 	err = db.gdb.Find(&nodes, &Node{NodeID: id}).Error
 	if err != nil {
-		return nodes, fmt.Errorf("couldn't get NodeVersions: %+v", err)
+		return nodes, fmt.Errorf("couldn't get NodeVersions: %v", err)
 	}
 	return
 }
@@ -159,7 +171,7 @@ func (db DB) GetNodeVersions(id NodeID) (nodes []Node, err error) {
 func (db DB) GetLatest(id NodeID) (n Node, err error) {
 	nodes, err := db.GetNodeVersions(id)
 	if err != nil {
-		return n, fmt.Errorf("couldn't get latest node: %+v", err)
+		return n, fmt.Errorf("couldn't get latest node: %v", err)
 	}
 	if len(nodes) == 0 {
 		return n, errors.New("no node with this id")

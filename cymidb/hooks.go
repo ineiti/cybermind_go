@@ -1,7 +1,6 @@
 package cymidb
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -10,34 +9,35 @@ import (
 type Hook struct {
 	// Name is the name of the hook and must be unique
 	Name string
-	node Node
+	// Devices holds all IDs of devices this hook is active on
+	Devices []NodeID
+	// Types is an array of types which will create events when they change
+	Types []NodeType
+	node  Node
+	db    DB
 }
 
-// DataTypeHookName is the unique ID for the name
-var DataTypeHookName = NewDataType("blue.gasser/cybermind/hook/name")
-
-func NewHookFromNode(n Node) (h Hook, err error) {
-	if n.Type != NodeHook {
-		return h, errors.New("node is not of type hook")
+func NewHookFromNode(db DB, n Node) (h Hook, err error) {
+	err = n.DecodeNodeType(NodeHook, &h)
+	if err != nil {
+		return h, fmt.Errorf("couldn't decode hook node: %v", err)
 	}
 	h.node = n
-	name, err := n.GetData(DataTypeHookName)
-	if err != nil {
-		return h, fmt.Errorf("couldn't get name of hook: %+v", err)
-	}
-	h.Name = string(name)
+	h.db = db
 	return
 }
 
 // NewHook returns a hook defined on a new node with the name set.
-func NewHook(name string) (h Hook) {
+func NewHook(name string, devices []NodeID, types []NodeType) (h Hook) {
 	h.node = NewNode(NodeHook)
 	h.Name = name
+	h.Devices = devices
+	h.Types = types
 	return
 }
 
 // GetNode is used to implement Noders.
 func (h Hook) GetNode() (Node, error) {
-	err := h.node.SetDatas(Data{Type: DataTypeHookName, Data: []byte(h.Name)})
+	err := h.node.EncodeData(&h)
 	return h.node, err
 }

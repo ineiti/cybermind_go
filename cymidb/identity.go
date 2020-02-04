@@ -13,14 +13,11 @@ type Identity struct {
 	node   Node
 }
 
-// DataTypeIdentity is used in a device node to represent the metadata of the identity.
-var DataTypeIdentity = NewDataType("blue.gasser/cybermind/data/identity")
-
 // NewIdentityFromNode takes a node and returns an Identity. If the node is not of the correct type,
 // or if the name is not present, an error will be returned.
 func NewIdentityFromNode(n Node) (ident Identity, err error) {
-	if err := n.DecodeNodeType(NodeIdentity, DataTypeIdentity, &ident); err != nil {
-		return ident, fmt.Errorf("couldn't decode node: %+v", err)
+	if err := n.DecodeNodeType(NodeIdentity, &ident); err != nil {
+		return ident, fmt.Errorf("couldn't decode node: %v", err)
 	}
 	ident.node = n
 	return
@@ -36,9 +33,9 @@ func NewIdentity(a string, emails []string) (ident Identity, err error) {
 
 // GetNode returns the updated node
 func (ident Identity) GetNode() (Node, error) {
-	err := ident.node.EncodeData(DataTypeIdentity, &ident)
+	err := ident.node.EncodeData(&ident)
 	if err != nil {
-		return ident.node, fmt.Errorf("couldn't update with data: %+v", err)
+		return ident.node, fmt.Errorf("couldn't update with Data: %v", err)
 	}
 	return ident.node, nil
 }

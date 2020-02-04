@@ -14,7 +14,7 @@ func TestNewIdentity(t *testing.T) {
 	ident, err := NewIdentity("test", []string{"one@test.com", "two@test.com"})
 	require.NoError(t, err)
 	require.NoError(t, db.SaveNode(ident))
-	require.NoError(t, db.AddLink(db.Device.node.NodeID, ident.node.NodeID))
+	require.NoError(t, db.AddLink(db.Device, ident))
 
 	// Retrieve all identities
 	ids, err := db.GetChildren(db.Device.node.NodeID)

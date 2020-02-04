@@ -39,9 +39,9 @@ func TestNewFS(t *testing.T) {
 	for _, sd := range subdirs {
 		switch sd.Name {
 		case docDir.Name:
-			require.NoError(t, docDir.node.CompareTo(sd.node))
+			require.NoError(t, NoderCompare(docDir, sd))
 		case emptyDir.Name:
-			require.NoError(t, emptyDir.node.CompareTo(sd.node))
+			require.NoError(t, NoderCompare(emptyDir, sd))
 		default:
 			require.Fail(t, "found unknown directory")
 		}
@@ -58,12 +58,12 @@ func TestNewFS(t *testing.T) {
 	files, err := rootDir.GetFiles(db)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(files))
-	require.NoError(t, gitConfig.node.CompareTo(files[0].node))
+	require.NoError(t, NoderCompare(gitConfig, files[0]))
 
 	files, err = docDir.GetFiles(db)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(files))
-	require.NoError(t, todo.node.CompareTo(files[0].node))
+	require.NoError(t, NoderCompare(todo, files[0]))
 
 	files, err = emptyDir.GetFiles(db)
 	require.NoError(t, err)

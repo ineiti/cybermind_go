@@ -1,14 +1,13 @@
 package cymidb
 
 import (
-	"errors"
 	"fmt"
 )
 
 // File_dir implements the File and Dir blobs that can be used to represent files, either on a real file system,
 // or files from other sources like email or chats.
 
-// File represents one file. The data itself is stored in a separate blob,
+// File represents one file. The Data itself is stored in a separate blob,
 // which can be a virtual blob in the case of a filesystem stored directly on the device itself.
 type File struct {
 	Name string
@@ -18,19 +17,15 @@ type File struct {
 }
 
 var NodeTypeFile = NodeBlob.SubType("blue.gasser/cybermind/file")
-var DataTypeFile = NewDataType("blue.gasser/cybermind/file")
 
-// FileData is the data of a file. It can be a virtual blob that does only exist on the file system of the device.
+// FileData is the Data of a file. It can be a virtual blob that does only exist on the file system of the device.
 // If it's a virtual blob, the NodeID is all 0s.
 type FileData struct {
+	Data []byte
 	node Node
-	data []byte
 }
 
 var NodeTypeFileData = NodeBlob.SubType("blue.gasser/cybermind/filedata")
-
-// DataTypeFileData represents the data of the file.
-var DataTypeFileData = NewDataType("blue.gasser/cybermind/filedata")
 
 // Dir holds multiple files and dirs together.
 type Dir struct {
@@ -41,13 +36,10 @@ type Dir struct {
 
 var NodeTypeDir = NodeBlob.SubType("blue.gasser/cybermind/dir")
 
-// DataTypeDir represents the data of the file.
-var DataTypeDir = NewDataType("blue.gasser/cybermind/dir")
-
 func NewFileFromNode(n Node) (f File, err error) {
-	err = n.DecodeNodeType(NodeTypeFile, DataTypeFile, &f)
+	err = n.DecodeNodeType(NodeTypeFile, &f)
 	if err != nil {
-		return f, fmt.Errorf("couldn't decode file: %+v", err)
+		return f, fmt.Errorf("couldn't decode file: %v", err)
 	}
 	f.node = n
 	return
@@ -61,17 +53,18 @@ func NewFile(name string, mask uint16) (f File) {
 }
 
 func (f File) GetNode() (Node, error) {
-	err := f.node.EncodeData(DataTypeFile, &f)
+	err := f.node.EncodeData(&f)
 	return f.node, err
 }
 
 func (f File) AddData(db DB, fd FileData) error {
-	return db.AddLink(f.node.NodeID, fd.node.NodeID)
+	return db.AddLink(f, fd)
 }
 
 func NewFileDataFromNode(n Node) (f FileData, err error) {
-	if n.Type != NodeTypeFileData {
-		return f, errors.New("node not of type FileData")
+	err = n.DecodeNodeType(NodeTypeFileData, &f)
+	if err != nil {
+		return f, fmt.Errorf("couldn't decode fileData node: %v", err)
 	}
 	f.node = n
 	return
@@ -79,46 +72,42 @@ func NewFileDataFromNode(n Node) (f FileData, err error) {
 
 func NewFileData(data []byte) (fd FileData) {
 	fd.node = NewNode(NodeTypeFileData)
-	fd.data = data
+	fd.Data = data
 	return
 }
 
 func (f FileData) GetNode() (Node, error) {
-	if f.data != nil {
-		if err := f.node.SetDatas(Data{Type: DataTypeFileData, Data: f.data}); err != nil {
-			return f.node, fmt.Errorf("couldn't set node data")
-		}
-	}
-	return f.node, nil
+	err := f.node.EncodeData(&f)
+	return f.node, err
 }
 
 func NewDirFromNode(n Node) (d Dir, err error) {
-	err = n.DecodeNodeType(NodeTypeDir, DataTypeDir, &d)
+	err = n.DecodeNodeType(NodeTypeDir, &d)
 	if err != nil {
-		return d, fmt.Errorf("couldn't decode dir: %+v", err)
+		return d, fmt.Errorf("couldn't decode dir: %v", err)
 	}
 	d.node = n
 	return
 }
 
 func NewDir(name string, mask uint16) (d Dir) {
-	d.node = NewNode(NodeTypeDir)
 	d.Name = name
 	d.Mask = mask
+	d.node = NewNode(NodeTypeDir)
 	return
 }
 
 func (d Dir) GetNode() (Node, error) {
-	err := d.node.EncodeData(DataTypeDir, &d)
+	err := d.node.EncodeData(&d)
 	return d.node, err
 }
 
 func (d Dir) AddSubdir(db DB, sd Dir) error {
-	return db.AddLink(d.node.NodeID, sd.node.NodeID)
+	return db.AddLink(d, sd)
 }
 
 func (d Dir) AddFile(db DB, f File) error {
-	return db.AddLink(d.node.NodeID, f.node.NodeID)
+	return db.AddLink(d, f)
 }
 
 func (d Dir) GetDirs(db DB) (dirs []Dir, err error) {
