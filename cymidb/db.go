@@ -111,10 +111,6 @@ func (db DB) GetNodes(ids []NodeID) (nodes []Node, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("couldn't get node %x: %v", l, err)
 		}
-		err = n.updateDatas()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't update datas: %v", err)
-		}
 		nodes = append(nodes, n)
 	}
 	return

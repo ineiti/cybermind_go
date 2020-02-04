@@ -56,10 +56,10 @@ func TestDB_Links(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	td := NewDataType("blue.gasser/test/blob")
-
-	n1 := NewNode(NodeBlob, Data{td, []byte("blob1")})
-	n2 := NewNode(NodeBlob, Data{td, []byte("blob2")})
+	n1 := NewNode(NodeBlob)
+	n1.Data = []byte("blob1")
+	n2 := NewNode(NodeBlob)
+	n2.Data = []byte("blob2")
 	require.NoError(t, db.SaveNode(n1))
 	require.NoError(t, db.SaveNode(n2))
 	require.NoError(t, db.AddLink(n1, n2))
